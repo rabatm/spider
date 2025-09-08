@@ -50,7 +50,15 @@ fn main() {
         if let Some(src) = element.value().attr("src") {
             match base_url.join(src) {
                 Ok(full_url) => {
-                    println!("URL Absolue Trouvée : {}", full_url);
+                    let url_as_string = full_url.to_string();
+
+                    if url_as_string.ends_with(".jpg") || url_as_string.ends_with(".jpeg") || 
+                        url_as_string.ends_with(".jpeg") || url_as_string.ends_with(".png")  ||
+                        url_as_string.ends_with(".gif") || url_as_string.ends_with(".bmp") 
+                    {
+                            println!("Image à télécharger : {}", full_url);
+                    }
+                    
                 }
                 Err(e) => {
                     // On affiche une erreur si l'URL est malformée, mais on continue
