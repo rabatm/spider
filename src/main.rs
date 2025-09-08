@@ -56,7 +56,29 @@ fn main() {
                         url_as_string.ends_with(".jpeg") || url_as_string.ends_with(".png")  ||
                         url_as_string.ends_with(".gif") || url_as_string.ends_with(".bmp") 
                     {
-                            println!("Image à télécharger : {}", full_url);
+                            println!("Image à télécharger : {}", url_as_string);
+                            // --- DÉBUT DU NOUVEAU CODE ---
+                            println!("-> Tentative de téléchargement...");
+
+                            // On refait une requête pour obtenir les données de l'image
+                            let image_response = reqwest::blocking::get(full_url)
+                                .expect("Erreur durant la requête de l'image.");
+                            
+                            // On récupère les données brutes de l'image (les "bytes")
+                            let image_bytes = image_response.bytes()
+                                .expect("Erreur durant la lecture des bytes de l'image.");
+
+                            // On définit un nom de fichier simple pour le test
+                            let file_name = "test_image.png";
+
+                            // On utilise la bibliothèque standard `fs` pour écrire le fichier
+                            std::fs::write(file_name, &image_bytes)
+                                .expect("Erreur durant la sauvegarde de l'image.");
+                            
+                            println!("-> Image sauvegardée dans : {}", file_name);
+
+                            // On quitte la boucle après la première image
+                            break; 
                     }
                     
                 }
