@@ -3,6 +3,11 @@ use scraper::{Html, Selector};
 use url::Url;
 use std::path::PathBuf;
 use std::fs;
+
+mod domain;
+mod application;
+mod infrastructure;
+
 ///un scraper web simple qui télécharge recursivement les images d'un site.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -24,8 +29,8 @@ struct Args {
 
 }
 
-
 fn scrape_page(url_a_visiter: &Url, path_de_sauvegarde: &str) -> Vec<Url> {
+    let mut nouveaux_liens = Vec::new();
     let response = reqwest::blocking::get(url_a_visiter.clone())
         .expect("ERREUR : Impossible de récupérer l'URL.");
     let body = response.text()
@@ -34,7 +39,6 @@ fn scrape_page(url_a_visiter: &Url, path_de_sauvegarde: &str) -> Vec<Url> {
     // On crée un "sélecteur" CSS pour trouver toutes les balises <img>
     let image_selector = Selector::parse("img").unwrap();
     // On cherche tous les éléments qui correspondent à notre sélecteur
-
     for element in document.select(&image_selector) {
         // Pour chaque élément trouvé, on essaie de récupérer son attribut "src"
         if let Some(src) = element.value().attr("src") {
@@ -63,7 +67,6 @@ fn scrape_page(url_a_visiter: &Url, path_de_sauvegarde: &str) -> Vec<Url> {
                         fs::write(&final_path, &image_bytes)
                             .expect("Erreur durant la sauvegarde de l'image.");
                         println!("-> Image sauvegardée dans : {}", final_path.display());
-                        break;
                     }
                 }
                 Err(e) => {
@@ -73,16 +76,40 @@ fn scrape_page(url_a_visiter: &Url, path_de_sauvegarde: &str) -> Vec<Url> {
             }
         }
     }
-    return Vec::new();
+    let link_selector = Selector::parse("a").unwrap();
+    for element in document.select(&link_selector) {
+        if let Some(href) = element.value().attr("href") {
+            if let Ok(lien_absolu) = url_a_visiter.join(href) {
+                nouveaux_liens.push(lien_absolu);
+            }
+        }
+    }
+    nouveaux_liens
 }
 
 
 fn main() {
     let args = Args::parse();
+    let mut visitees = Vec::new();
+    let mut profondeur = args.level;
     fs::create_dir_all(&args.path).expect("Impossible de créer le dossier de sauvegarde.");
-    //On transforme l'URL de l'utilisateur en une URL de base structurée
     let base_url = Url::parse(&args.url)
         .expect("ERREUR : URL de base invalide.");
     println!("Récupération de l'URL : {}", base_url);
-    scrape_page(&base_url, &args.path);
+    let mut a_visiter = scrape_page(&base_url, &args.path);
+    println!("Récupération des liens :");
+    while (a_visiter.len() > 0) && profondeur > 0
+    {
+        if let Some(prochain_lien) = a_visiter.pop()
+        {
+            if !visitees.contains(&prochain_lien)
+            {
+                let new_visiter = scrape_page(&prochain_lien, &args.path);
+                a_visiter.pop();
+                a_visiter.extend(new_visiter);
+                visitees.push(prochain_lien);
+            }
+        }
+        profondeur = profondeur - 1;
+    }
 }
